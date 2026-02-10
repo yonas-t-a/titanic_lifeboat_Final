@@ -46,48 +46,42 @@ def load_models():
 models = load_models()
 
 # --- 2. THE API ENDPOINT ---
-@app.post("/predict")
+@app.post("/api/predict")
 async def predict(data: dict = Body(...)):
-    """
-    Expects JSON from your JS app:
-    { "pclass": 1, "sex_male": 0, "age": 28, "fare": 32.0 }
-    """
     try:
-        column_order = ['Pclass', 'Age', 'SibSp', 'Parch', 'Fare', 'Sex_male', 'Embarked_Q', 'Embarked_S']
+        # We use a simple list/numpy array instead of a heavy DataFrame
+        # Order: [Pclass, Age, SibSp, Parch, Fare, Sex_male, Embarked_Q, Embarked_S]
+        input_data = [
+            int(data.get('pclass', 3)),
+            float(data.get('age', 25)),
+            0, # SibSp
+            0, # Parch
+            float(data.get('fare', 32.0)),
+            int(data.get('sex_male', 1)),
+            0, # Embarked_Q
+            1  # Embarked_S
+        ]
         
-        input_df = pd.DataFrame([{
-            'Pclass': int(data.get('pclass', 3)),
-            'Age': float(data.get('age', 25)),
-            'SibSp': 0,
-            'Parch': 0,
-            'Fare': float(data.get('fare', 32.0)),
-            'Sex_male': int(data.get('sex_male', 1)),
-            'Embarked_Q': 0,
-            'Embarked_S': 1
-        }])[column_order]
+        # Convert to 2D array for the models
+        input_array = np.array([input_data])
 
         gate_results = []
-        
         for name, model in models.items():
-            # XGBoost conversion fix
-            input_values = input_df.values if name == "XGBoost Gate" else input_df
-            
-            # Probability calculation logic
+            # Most models accept numpy arrays directly
             if name == "SVM Gate" and not hasattr(model, "predict_proba"):
-                decision = model.decision_function(input_df)[0]
+                decision = model.decision_function(input_array)[0]
                 prob = 1 / (1 + np.exp(-decision))
             else:
-                prob_array = model.predict_proba(input_values)
+                prob_array = model.predict_proba(input_array)
                 prob = prob_array[0][1]
             
             gate_results.append({
                 "name": name,
                 "prob": round(float(prob) * 100, 1),
-                "survived": bool(prob > 0.5) # Cast to native bool for JSON serialization
+                "survived": bool(prob > 0.5)
             })
 
         return {"results": gate_results}
-
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

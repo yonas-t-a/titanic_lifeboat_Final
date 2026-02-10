@@ -1,5 +1,5 @@
 fastapi
 joblib
 numpy
-scikit-learn-lite  # Or use specific versions to avoid bloat
+scikit-learn==1.2.2
 xgboost
