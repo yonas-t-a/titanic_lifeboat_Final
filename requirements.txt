@@ -1,8 +1,5 @@
 fastapi
-uvicorn
 joblib
-pandas
 numpy
-scikit-learn
+scikit-learn-lite  # Or use specific versions to avoid bloat
 xgboost
-python-multipart
